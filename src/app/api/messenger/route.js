@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN
-const TEST_PSID = process.env.TEST_PSID
+const SELF_PSID = process.env.SELF_PSID;
 
 // ✅ 1. Verification (for webhook setup)
 export async function GET(req) {
@@ -43,11 +43,11 @@ export async function POST(req) {
     // 🧠 2️⃣ Otherwise, frontend → send message to Messenger
     if (body.text) {
       const text = body.text
-      const testUserPsid = process.env.TEST_PSID
+      const testUserPsid = process.env.SELF_PSID
 
       if (!testUserPsid) {
-        console.error('❌ Missing TEST_PSID')
-        return new Response('Missing TEST_PSID in .env.local', { status: 400 })
+        console.error('❌ Missing SELF_PSID')
+        return new Response('Missing SELF_PSID in .env.local', { status: 400 })
       }
 
       console.log(`⚡ Sending to Facebook: "${text}" → PSID: ${testUserPsid}`)
@@ -78,8 +78,26 @@ export async function POST(req) {
 
 
 // ✅ Helper function (auto reply to incoming messages)
+// async function handleMessage(senderPsid, receivedMessage) {
+//   let response
+//   if (receivedMessage.text) {
+//     response = { text: `You said: "${receivedMessage.text}" 👋` }
+//   }
+
+//   await axios.post(
+//     `https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+//     {
+//       recipient: { id: senderPsid },
+//       message: response,
+//     }
+//   )
+// }
+
 async function handleMessage(senderPsid, receivedMessage) {
-  let response
+  // ✅ Skip replying to yourself
+  if (senderPsid === SELF_PSID) return;
+
+  let response;
   if (receivedMessage.text) {
     response = { text: `You said: "${receivedMessage.text}" 👋` }
   }

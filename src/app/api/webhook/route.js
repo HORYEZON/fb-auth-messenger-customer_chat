@@ -1,56 +1,55 @@
-import axios from 'axios'
+import axios from "axios";
 
-const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN
+const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
-// ✅ GET = Facebook verifying the webhook
+// Facebook verification (GET)
 export async function GET(req) {
-  const { searchParams } = new URL(req.url)
-  const mode = searchParams.get('hub.mode')
-  const token = searchParams.get('hub.verify_token')
-  const challenge = searchParams.get('hub.challenge')
+  const { searchParams } = new URL(req.url);
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ WEBHOOK VERIFIED')
-    return new Response(challenge, { status: 200 })
-  } else {
-    return new Response('Forbidden', { status: 403 })
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ WEBHOOK VERIFIED");
+    return new Response(challenge, { status: 200 });
   }
+
+  return new Response("Forbidden", { status: 403 });
 }
 
-// ✅ POST = Facebook sending messages/events
+// Facebook → Website messages (POST)
 export async function POST(req) {
-  const body = await req.json()
+  try {
+    const body = await req.json();
 
-  if (body.object === 'page') {
-    body.entry.forEach(entry => {
-      const webhookEvent = entry.messaging?.[0]
-      console.log('📩 Message received:', webhookEvent)
+    if (body.object === "page") {
+      for (const entry of body.entry) {
+        const event = entry.messaging[0];
+        const senderPsid = event.sender.id;
 
-      const senderPsid = webhookEvent.sender?.id
+        console.log("📩 Incoming from FB:", event);
 
-      if (webhookEvent.message) {
-        handleMessage(senderPsid, webhookEvent.message)
+        if (event.message) {
+          await replyToUser(senderPsid, event.message.text);
+        }
       }
-    })
+      return new Response("EVENT_RECEIVED", { status: 200 });
+    }
 
-    return new Response('EVENT_RECEIVED', { status: 200 })
-  } else {
-    return new Response('Not Found', { status: 404 })
+    return new Response("Not Found", { status: 404 });
+  } catch (err) {
+    console.error("❌ Webhook Error:", err.message);
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
 
-async function handleMessage(senderPsid, receivedMessage) {
-  let response
-  if (receivedMessage.text) {
-    response = { text: `You said: "${receivedMessage.text}" 👋` }
-  }
-
+async function replyToUser(senderPsid, message) {
   await axios.post(
     `https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
     {
       recipient: { id: senderPsid },
-      message: response,
+      message: { text: `You said: ${message}` },
     }
-  )
+  );
 }
