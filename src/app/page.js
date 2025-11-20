@@ -1,5 +1,5 @@
 // src/app/page.js
-import ChatBubble from "@/components/ChatBubble";
+import ChatBubble from "../components/ChatBubble";
 
 export default function Page() {
   return (
